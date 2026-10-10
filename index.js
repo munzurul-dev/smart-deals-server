@@ -19,9 +19,18 @@ async function run() {
   try {
     const database = client.db("smart_deals_db");
     const productCollations = database.collection("products");
+    const bidCollections = database.collection("bid_data");
 
     app.get("/products", async (req, res) => {
-      const cursor = productCollations.find();
+      console.log(req.query.email);
+      const email = req.query.email;
+      const query = {};
+      if (email) {
+        query.email = email;
+      }
+
+      const cursor = productCollations.find(query);
+
       const result = await cursor.toArray();
       res.send(result);
     });
@@ -57,6 +66,38 @@ async function run() {
       const result = await productCollations.deleteOne(query);
       res.send(result);
     });
+
+    //bid related
+    app.get("/bids", async (req, res) => {
+      const email = req.query.email;
+      const query = {};
+      if (email) {
+        query.buyer_email = email;
+      }
+      const cursor = bidCollections.find(query);
+      const result = await cursor.toArray();
+      res.send(result);
+    });
+
+    app.get("/bids/:id", async (req ,res)=>{
+      const id = req.params.id;
+      const query = {_id: new ObjectId(id)};
+      const result = await bidCollections.findOne(query);
+      res.send(result)
+    })
+
+    app.post("/bids", async (req, res)=>{
+      const newBid = req.body;
+      const result = await bidCollections.insertOne(newBid);
+      res.send(result);
+    })
+
+    app.delete("/bids/:id", async (req, res)=>{
+      const id = req.params.id;
+      const query =  {_id: new ObjectId(id)};
+      const result = await bidCollections.deleteOne(query);
+      res.send(result);
+    })
 
     await client.connect();
     await client.db("admin").command({ ping: 1 });
