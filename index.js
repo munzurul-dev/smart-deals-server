@@ -20,6 +20,7 @@ async function run() {
     const database = client.db("smart_deals_db");
     const productCollations = database.collection("products");
     const bidCollections = database.collection("bid_data");
+    const userCollections = database.collection("users");
 
     app.get("/products", async (req, res) => {
       console.log(req.query.email);
@@ -34,6 +35,12 @@ async function run() {
       const result = await cursor.toArray();
       res.send(result);
     });
+    
+  app.get("/latest-products", async (req, res)=>{
+    const cursor = productCollations.find().sort( {created_at: 1}).limit(6);
+    const result = await cursor.toArray();
+    res.send(result);
+  })
 
     app.get("/products/:id", async (req, res) => {
       const id = req.params.id;
@@ -79,25 +86,41 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/bids/:id", async (req ,res)=>{
+    app.get("/bids/:id", async (req, res) => {
       const id = req.params.id;
-      const query = {_id: new ObjectId(id)};
+      const query = { _id: new ObjectId(id) };
       const result = await bidCollections.findOne(query);
-      res.send(result)
-    })
+      res.send(result);
+    });
 
-    app.post("/bids", async (req, res)=>{
+    app.post("/bids", async (req, res) => {
       const newBid = req.body;
       const result = await bidCollections.insertOne(newBid);
       res.send(result);
-    })
+    });
 
-    app.delete("/bids/:id", async (req, res)=>{
+    app.delete("/bids/:id", async (req, res) => {
       const id = req.params.id;
-      const query =  {_id: new ObjectId(id)};
+      const query = { _id: new ObjectId(id) };
       const result = await bidCollections.deleteOne(query);
       res.send(result);
-    })
+    });
+
+    // user related
+
+    app.post("/users", async (req, res) => {
+      const newUser = req.body;
+      const email = newUser.eamil;
+      const query = { email: email };
+      const existing = userCollections.findOne(query);
+
+      if (existing) {
+        res.send({ message: "eamil already existing" });
+      } else {
+        const result = await userCollections.insertOne(newUser);
+        res.send(result);
+      }
+    });
 
     await client.connect();
     await client.db("admin").command({ ping: 1 });
