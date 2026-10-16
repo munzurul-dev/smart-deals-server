@@ -1,15 +1,16 @@
 const express = require("express");
 const cors = require("cors");
 const { MongoClient, ObjectId } = require("mongodb");
+require("dotenv").config();
 
 const app = express();
 const port = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-const client = new MongoClient(
-  "REDACTED_MONGODB_URI",
-);
+require("dotenv").config();
+
+const client = new MongoClient(process.env.MONGODB_URI);
 
 app.get("/", (req, res) => {
   res.send("smart server running ");
@@ -35,12 +36,12 @@ async function run() {
       const result = await cursor.toArray();
       res.send(result);
     });
-    
-  app.get("/latest-products", async (req, res)=>{
-    const cursor = productCollations.find().sort( {created_at: 1}).limit(6);
-    const result = await cursor.toArray();
-    res.send(result);
-  })
+
+    app.get("/latest-products", async (req, res) => {
+      const cursor = productCollations.find().sort({ created_at: 1 }).limit(6);
+      const result = await cursor.toArray();
+      res.send(result);
+    });
 
     app.get("/products/:id", async (req, res) => {
       const id = req.params.id;
@@ -75,15 +76,29 @@ async function run() {
     });
 
     //bid related
-    app.get("/bids", async (req, res) => {
-      const email = req.query.email;
-      const query = {};
-      if (email) {
-        query.buyer_email = email;
-      }
-      const cursor = bidCollections.find(query);
-      const result = await cursor.toArray();
+    app.post("/bids", async (req, res) => {
+      const newBid = req.body;
+      // console.log("New Bid Data:", newBid);
+      const result = await bidCollections.insertOne(newBid);
       res.send(result);
+    });
+
+    app.get("/productsBids/:productID", async (req, res) => {
+      try {
+        const productID = req.params.productID;
+        const query = { product: productID };
+
+        const result = await bidCollections
+          .find(query)
+          .collation({ locale: "en", numericOrdering: true })
+          .sort({ bid_price: -1 })
+          .toArray();
+
+        res.send(result);
+      } catch (error) {
+        console.error("Failed to fetch bids:", error);
+        res.status(500).send({ message: "Failed to fetch bids" });
+      }
     });
 
     app.get("/bids/:id", async (req, res) => {
@@ -91,6 +106,27 @@ async function run() {
       const query = { _id: new ObjectId(id) };
       const result = await bidCollections.findOne(query);
       res.send(result);
+    });
+
+    app.get("/bids", async (req, res) => {
+      try {
+        const email = req.query.email;
+        const query = {};
+
+        if (email) {
+          query.buyer_email = email;
+        }
+
+        const result = await bidCollections
+          .find(query)
+          .sort({ bid_price: -1 })
+          .toArray();
+
+        res.send(result);
+      } catch (error) {
+        console.error("Failed to fetch bids:", error);
+        res.status(500).send({ message: "Failed to fetch bids" });
+      }
     });
 
     app.post("/bids", async (req, res) => {
